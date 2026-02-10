@@ -6,7 +6,7 @@ import { customerSchema } from "@/lib/schemas"
 
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions)
@@ -15,6 +15,7 @@ export async function PUT(
             return new NextResponse("Unauthorized", { status: 401 })
         }
 
+        const params = await context.params
         const body = await req.json()
         const result = customerSchema.safeParse(body)
 
@@ -45,7 +46,7 @@ export async function PUT(
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions)
@@ -54,6 +55,7 @@ export async function DELETE(
             return new NextResponse("Unauthorized", { status: 401 })
         }
 
+        const params = await context.params
         const customer = await prisma.customer.delete({
             where: {
                 id: params.id

@@ -21,6 +21,11 @@ export async function POST(req: Request) {
 
         const { orderId, amount, method } = result.data
 
+        // Validate amount is positive
+        if (amount <= 0) {
+            return new NextResponse("Payment amount must be greater than zero", { status: 400 })
+        }
+
         // 1. Get current order to check balance
         const order = await prisma.order.findUnique({
             where: { id: orderId }
@@ -31,7 +36,7 @@ export async function POST(req: Request) {
         }
 
         if (amount > order.balance) {
-            return new NextResponse("Payment amount exceeds balance", { status: 400 })
+            return new NextResponse(`Payment amount (₹${amount}) exceeds remaining balance (₹${order.balance})`, { status: 400 })
         }
 
         // 2. Create Payment and Update Order in transaction

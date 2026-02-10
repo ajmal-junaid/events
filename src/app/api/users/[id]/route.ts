@@ -8,7 +8,7 @@ import bcrypt from "bcrypt"
 
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions)
@@ -17,6 +17,7 @@ export async function PUT(
             return new NextResponse("Unauthorized", { status: 403 })
         }
 
+        const params = await context.params
         const body = await req.json()
         const result = userSchema.safeParse(body)
 
@@ -65,7 +66,7 @@ export async function PUT(
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions)
@@ -74,6 +75,7 @@ export async function DELETE(
             return new NextResponse("Unauthorized", { status: 403 })
         }
 
+        const params = await context.params
         const user = await prisma.user.delete({
             where: {
                 id: params.id

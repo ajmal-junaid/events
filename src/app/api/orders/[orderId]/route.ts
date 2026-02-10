@@ -23,8 +23,29 @@ export async function PATCH(
             return new NextResponse("Status is required", { status: 400 })
         }
 
-        // TODO: Add specific transitions checks (e.g. can't go from COMPLETED to PENDING)
-        // For now, allow any status change authorized by role.
+        // Validate status is a valid OrderStatus
+        const validStatuses = Object.values(OrderStatus)
+        if (!validStatuses.includes(status)) {
+            return new NextResponse("Invalid status value", { status: 400 })
+        }
+
+        // Get current order to validate transition
+        const currentOrder = await prisma.order.findUnique({
+            where: { id: params.orderId }
+        })
+
+        if (!currentOrder) {
+            return new NextResponse("Order not found", { status: 404 })
+        }
+
+        // Prevent invalid status transitions
+        if (currentOrder.status === OrderStatus.COMPLETED && status !== OrderStatus.COMPLETED) {
+            return new NextResponse("Cannot change status of completed order", { status: 400 })
+        }
+
+        if (currentOrder.status === OrderStatus.CANCELLED && status !== OrderStatus.CANCELLED) {
+            return new NextResponse("Cannot change status of cancelled order", { status: 400 })
+        }
 
         const order = await prisma.order.update({
             where: {
