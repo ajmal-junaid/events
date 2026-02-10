@@ -8,6 +8,7 @@ import { format } from "date-fns"
 
 export type OrderColumn = {
     id: string
+    orderNumber: string
     customerId: string
     customerName: string
     branchName: string
@@ -22,16 +23,17 @@ export type OrderColumn = {
 
 export const columns: ColumnDef<OrderColumn>[] = [
     {
-        accessorKey: "id",
-        header: "Order ID",
+        accessorKey: "orderNumber",
+        header: "Order Number",
         cell: ({ row }) => {
             const orderId = row.original.id
+            const orderNumber = row.original.orderNumber
             return (
                 <a
                     href={`/dashboard/orders/${orderId}`}
-                    className="font-mono text-xs text-blue-600 hover:underline hover:text-blue-800"
+                    className="font-semibold text-blue-600 hover:underline hover:text-blue-800"
                 >
-                    #{orderId.slice(-6).toUpperCase()}
+                    {orderNumber}
                 </a>
             )
         }

@@ -23,7 +23,7 @@ export async function PUT(
             return new NextResponse("Invalid data", { status: 400 })
         }
 
-        const { name, category, basePrice, totalStock } = result.data
+        const { name, category, basePrice, totalStock, image } = result.data
 
         const product = await prisma.product.update({
             where: {
@@ -33,7 +33,8 @@ export async function PUT(
                 name,
                 category,
                 basePrice,
-                totalStock
+                totalStock,
+                image
             }
         })
 

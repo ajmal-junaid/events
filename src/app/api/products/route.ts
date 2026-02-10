@@ -42,14 +42,15 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid data", { status: 400 })
         }
 
-        const { name, category, basePrice, totalStock } = result.data
+        const { name, category, basePrice, totalStock, image } = result.data
 
         const product = await prisma.product.create({
             data: {
                 name,
                 category,
                 basePrice,
-                totalStock
+                totalStock,
+                image
             }
         })
 

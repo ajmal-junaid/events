@@ -25,6 +25,18 @@ export async function POST(req: Request) {
             return new NextResponse("No file provided", { status: 400 })
         }
 
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+        if (!allowedTypes.includes(file.type)) {
+            return new NextResponse("Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.", { status: 400 })
+        }
+
+        // Validate file size (10MB limit)
+        const maxSize = 10 * 1024 * 1024 // 10MB
+        if (file.size > maxSize) {
+            return new NextResponse("File size exceeds 10MB limit", { status: 400 })
+        }
+
         // Convert file to base64
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)

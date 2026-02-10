@@ -38,14 +38,13 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid data", { status: 400 })
         }
 
-        const { name, phone, address, gstIn, notes } = result.data
+        const { name, phone, address, notes } = result.data
 
         const customer = await prisma.customer.create({
             data: {
                 name,
                 phone,
                 address,
-                gstIn,
                 notes
             }
         })
