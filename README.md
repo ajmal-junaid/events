@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Rental Management System
+
+A comprehensive rental management system built with Next.js 14, MongoDB, Prisma, and NextAuth.js.
+
+## Prerequisites
+
+-   **Node.js**: Version 18+ (Recommended: 20 LTS)
+-   **MongoDB**: A running instance (Local or Atlas)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository (if applicable) or navigate to project directory
+cd rental-system
+
+# Install dependencies
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Ensure you have a `.env` file in the root directory with the following variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# MongoDB Connection String
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/rental-system?retryWrites=true&w=majority"
 
-## Learn More
+# NextAuth Configuration
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="vSMo9XLh4OD3WiSIJBX2daAX3gK8dCRaGwDiAfYGHho="
+```
 
-To learn more about Next.js, take a look at the following resources:
+*Note: The `NEXTAUTH_SECRET` has been auto-generated for you. If you deploy to production, generate a new one using `openssl rand -base64 32`.*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Database Setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Synchronize your Prisma schema with the MongoDB database:
 
-## Deploy on Vercel
+```bash
+# Generate Prisma Client
+npx prisma generate
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Push schema to database
+npx prisma db push
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**(Optional) Seed Initial Data**
+If you need an initial admin account, you can create one via the Signup page or by manually inserting into the database if you haven't implemented a seeder yet.
+
+### 4. Running the Application
+
+```bash
+# Start the development server
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Database Seeding
+
+To create the initial admin account and default branch, run:
+
+```bash
+npx prisma db seed
+```
+
+## Default Login Credentials
+
+If you have run the seeding script, you can use these credentials to log in:
+
+-   **Email**: `admin@rental.com`
+-   **Password**: `admin123`
+
+## Troubleshooting
+
+-   **Port in Use**: If port 3000 is busy, Next.js will try 3001. You can force a port with `PORT=3000 npm run dev`.
+-   **NextAuth Error (NO_SECRET)**: Ensure `NEXTAUTH_SECRET` is in `.env` and you have restarted the server after adding it.
+-   **Prisma Errors**: Run `npx prisma generate` again if you change the schema.
+-   **Missing Admin**: If you can't log in, ensure you ran `npx prisma db seed`.
+
+## Features at a Glance
+
+-   **Multi-Branch Management**: Manage inventory across different locations.
+-   **Order Processing**: Real-time stock availability checks.
+-   **Financials**: Invoice generation and payment tracking.
+-   **Dashboard**: Analytics and reporting.
+-   **PWA**: Installable on mobile devices.
