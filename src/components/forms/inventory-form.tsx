@@ -21,7 +21,7 @@ export function InventoryForm({ branchId, productId, currentQuantity, onSuccess 
     const router = useRouter()
     const [loading, setLoading] = useState(false)
 
-    const form = useForm<InventoryFormValues>({
+    const form = useForm({
         resolver: zodResolver(inventorySchema),
         defaultValues: {
             branchId,
@@ -66,7 +66,16 @@ export function InventoryForm({ branchId, productId, currentQuantity, onSuccess 
                         <FormItem>
                             <FormLabel>Quantity in Stock</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="0" {...field} />
+                                <Input
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value as number}
+                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                    onBlur={field.onBlur}
+                                    name={field.name}
+                                    ref={field.ref}
+                                    disabled={field.disabled}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

@@ -21,12 +21,12 @@ export function PaymentForm({ orderId, balance, onSuccess }: PaymentFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
 
-    const form = useForm<PaymentFormValues>({
+    const form = useForm({
         resolver: zodResolver(paymentSchema),
         defaultValues: {
             orderId,
             amount: balance > 0 ? balance : 0,
-            method: "CASH",
+            method: "CASH" as const,
         },
     })
 
@@ -72,7 +72,15 @@ export function PaymentForm({ orderId, balance, onSuccess }: PaymentFormProps) {
                         <FormItem>
                             <FormLabel>Amount (Max: ₹{balance})</FormLabel>
                             <FormControl>
-                                <Input type="number" {...field} />
+                                <Input
+                                    type="number"
+                                    value={field.value as number}
+                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    onBlur={field.onBlur}
+                                    name={field.name}
+                                    ref={field.ref}
+                                    disabled={field.disabled}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

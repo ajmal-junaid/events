@@ -44,7 +44,7 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
     const title = initialData ? "Edit Product" : "Create Product"
     const action = initialData ? "Save changes" : "Create"
 
-    const form = useForm<ProductFormValues>({
+    const form = useForm({
         resolver: zodResolver(productSchema),
         defaultValues: initialData || {
             name: "",
@@ -234,7 +234,16 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                             <FormItem>
                                 <FormLabel>Base Price (₹/day)</FormLabel>
                                 <FormControl>
-                                    <Input type="number" placeholder="50" {...field} />
+                                    <Input
+                                        type="number"
+                                        placeholder="50"
+                                        value={field.value as number}
+                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                        onBlur={field.onBlur}
+                                        name={field.name}
+                                        ref={field.ref}
+                                        disabled={field.disabled}
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -247,7 +256,16 @@ export function ProductForm({ initialData, onSuccess }: ProductFormProps) {
                             <FormItem>
                                 <FormLabel>Total Stock</FormLabel>
                                 <FormControl>
-                                    <Input type="number" placeholder="100" {...field} />
+                                    <Input
+                                        type="number"
+                                        placeholder="100"
+                                        value={field.value as number}
+                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                        onBlur={field.onBlur}
+                                        name={field.name}
+                                        ref={field.ref}
+                                        disabled={field.disabled}
+                                    />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

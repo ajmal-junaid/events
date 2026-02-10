@@ -8,8 +8,7 @@ export type CustomerColumn = {
     id: string
     name: string
     phone: string
-    address: string
-    gstIn: string
+    address?: string
     notes: string
     totalOrders: number
     pendingAmount: number
