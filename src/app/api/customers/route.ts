@@ -40,6 +40,16 @@ export async function POST(req: Request) {
 
         const { name, phone, address, notes } = result.data
 
+        const existingCustomer = await prisma.customer.findFirst({
+            where: {
+                phone
+            }
+        })
+
+        if (existingCustomer) {
+            return new NextResponse("Customer with this phone number already exists", { status: 409 })
+        }
+
         const customer = await prisma.customer.create({
             data: {
                 name,

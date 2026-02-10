@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
@@ -41,6 +42,19 @@ export async function POST(req: Request) {
 
         const { name, address, phone } = result.data
 
+        const existingBranch = await prisma.branch.findFirst({
+            where: {
+                name: {
+                    equals: name,
+                    mode: 'insensitive'
+                }
+            }
+        })
+
+        if (existingBranch) {
+            return new NextResponse("Branch with this name already exists", { status: 409 })
+        }
+
         const branch = await prisma.branch.create({
             data: {
                 name,
@@ -48,6 +62,8 @@ export async function POST(req: Request) {
                 phone
             }
         })
+
+        revalidatePath('/dashboard/branches')
 
         return NextResponse.json(branch)
     } catch (error) {

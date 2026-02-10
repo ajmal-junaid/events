@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma"
 import { BranchClient } from "./client"
 import { BranchColumn } from "./columns"
 
+export const dynamic = 'force-dynamic'
+
 export default async function BranchesPage() {
     const branches = await prisma.branch.findMany({
         include: {
