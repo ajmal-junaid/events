@@ -12,13 +12,13 @@ async function main() {
         update: {},
         create: {
             id: "65c3f9b0e4b0a1b2c3d4e5f6",
-            name: 'Headquarters',
-            address: 'Main St, City Center',
-            phone: '9876543210'
+            name: 'AK Events',
+            address: 'Deli',
+            phone: '9847131427'
         }
     })
 
-    // Create Super Admin
+    // Create Super Admin (no branchId - oversees all branches)
     const admin = await prisma.user.upsert({
         where: { email: 'admin@rental.com' },
         update: {},
@@ -27,7 +27,7 @@ async function main() {
             email: 'admin@rental.com',
             password: hashedPassword,
             role: Role.SUPER_ADMIN,
-            branchId: mainBranch.id
+            // Super admin has no branchId - they manage all branches
         }
     })
 
