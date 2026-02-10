@@ -26,7 +26,7 @@ interface PasswordSettingsProps {
     userId: string
 }
 
-export function PasswordSettings({ userId }: PasswordSettingsProps) {
+export function PasswordChangeForm({ userId }: PasswordSettingsProps) {
     const [loading, setLoading] = useState(false)
 
     const form = useForm({

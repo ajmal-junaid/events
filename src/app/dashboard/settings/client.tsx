@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProfileSettings } from "./profile-settings"
-import { PasswordSettings } from "./password-settings"
 import { User, Lock, Bell } from "lucide-react"
 
 interface SettingsClientProps {
@@ -35,7 +34,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
             </TabsContent>
 
             <TabsContent value="password" className="space-y-4">
-                <PasswordSettings userId={user.id} />
+                <div>Password settings temporarily disabled</div>
             </TabsContent>
         </Tabs>
     )
