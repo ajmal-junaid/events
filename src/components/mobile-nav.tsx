@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Menu } from "lucide-react"
+import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Menu, Settings } from "lucide-react"
 
 export function MobileNav() {
     const pathname = usePathname()

@@ -62,6 +62,13 @@ export function DashboardNav() {
             active: pathname === "/dashboard/orders",
             roles: ["SUPER_ADMIN", "BRANCH_MANAGER", "STAFF", "THIRD_PARTY"]
         },
+        {
+            href: "/dashboard/settings",
+            label: "Settings",
+            icon: Settings,
+            active: pathname.startsWith("/dashboard/settings"),
+            roles: ["SUPER_ADMIN", "BRANCH_MANAGER", "STAFF", "THIRD_PARTY"]
+        },
     ]
 
     return (
