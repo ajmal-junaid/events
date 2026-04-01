@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcrypt"
 import prisma from "@/lib/prisma"
 import { mobileLoginSchema } from "@/lib/mobile-schemas"
-import { signMobileToken } from "@/lib/mobile-auth"
+import { signMobileAccessToken, signMobileRefreshToken } from "@/lib/mobile-auth"
 
 export async function POST(req: Request) {
   try {
@@ -35,16 +35,21 @@ export async function POST(req: Request) {
       return new NextResponse("Invalid email or password", { status: 401 })
     }
 
-    const token = signMobileToken({
+    const tokenPayload = {
       userId: user.id,
       role: user.role,
       branchId: user.branchId,
       email: user.email,
       name: user.name,
-    })
+    }
+
+    const accessToken = signMobileAccessToken(tokenPayload)
+    const refreshToken = signMobileRefreshToken(tokenPayload)
 
     return NextResponse.json({
-      token,
+      token: accessToken,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,

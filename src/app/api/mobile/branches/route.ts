@@ -33,7 +33,16 @@ export async function POST(req: Request) {
       return auth.response
     }
 
-    if (auth.user.role !== Role.SUPER_ADMIN) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.userId },
+      select: { role: true },
+    })
+
+    if (!currentUser) {
+      return new NextResponse("Unauthorized", { status: 401 })
+    }
+
+    if (currentUser.role !== Role.SUPER_ADMIN) {
       return NextResponse.json({ message: "Only super admins can create branches." }, { status: 403 })
     }
 
@@ -41,7 +50,8 @@ export async function POST(req: Request) {
     const result = branchSchema.safeParse(body)
 
     if (!result.success) {
-      return new NextResponse("Invalid data", { status: 400 })
+      const message = result.error.issues[0]?.message ?? "Invalid data"
+      return NextResponse.json({ message }, { status: 400 })
     }
 
     const { name, address, phone, logo } = result.data
