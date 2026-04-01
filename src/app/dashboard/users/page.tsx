@@ -5,11 +5,6 @@ import { UserColumn } from "./columns"
 
 export default async function UsersPage() {
     const users = await prisma.user.findMany({
-        where: {
-            role: {
-                not: 'SUPER_ADMIN' // Exclude super admins to prevent accidental deletion
-            }
-        },
         include: {
             branch: {
                 select: { name: true }
