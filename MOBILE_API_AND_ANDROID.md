@@ -14,6 +14,7 @@
 These API routes are now available for Android integration:
 
 - `POST /api/mobile/auth/login`
+- `GET /api/mobile/branding`
 - `GET /api/mobile/me`
 - `GET /api/mobile/dashboard/stats`
 - `GET /api/mobile/branches`
