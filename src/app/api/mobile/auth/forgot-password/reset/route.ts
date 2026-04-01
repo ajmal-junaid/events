@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcrypt"
 import { NotificationType, Role } from "@prisma/client"
 import prisma from "@/lib/prisma"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 type ParsedResetPayload = {
   userId: string
@@ -30,6 +31,17 @@ function parseResetMessage(message: string): ParsedResetPayload | null {
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req)
+    const rl = await checkRateLimit({
+      key: `auth:forgot-reset:${ip}`,
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 20,
+      message: "Too many reset attempts. Please wait and try again.",
+    })
+    if (!rl.ok) {
+      return rl.response
+    }
+
     const body = await req.json()
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : ""
     const code = typeof body?.code === "string" ? body.code.trim() : ""
@@ -39,8 +51,8 @@ export async function POST(req: Request) {
       return new NextResponse("Email, code and new password are required", { status: 400 })
     }
 
-    if (newPassword.length < 6) {
-      return new NextResponse("Password must be at least 6 characters", { status: 400 })
+    if (newPassword.length < 8) {
+      return new NextResponse("Password must be at least 8 characters", { status: 400 })
     }
 
     const user = await prisma.user.findUnique({

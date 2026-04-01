@@ -4,14 +4,21 @@ import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { format, differenceInDays } from "date-fns"
 import { PrintButton } from "@/components/ui/print-button"
+import { Role } from "@prisma/client"
+import { verifyInvoiceAccessToken } from "@/lib/mobile-auth"
 
 export default async function InvoicePage(props: {
     params: Promise<{ orderId: string }>
+    searchParams: Promise<{ token?: string; download?: string }>
 }) {
     const params = await props.params
+    const searchParams = await props.searchParams
     const session = await getServerSession(authOptions)
+    const token = typeof searchParams.token === "string" ? searchParams.token : undefined
+    const tokenPayload = token ? verifyInvoiceAccessToken(token) : null
+    const autoDownload = searchParams.download === "1"
 
-    if (!session) {
+    if (!session && !tokenPayload) {
         redirect("/login")
     }
 
@@ -35,7 +42,21 @@ export default async function InvoicePage(props: {
         return <div>Order not found</div>
     }
 
-    if (session.user.role !== "SUPER_ADMIN" && order.branchId !== session.user.branchId) {
+    if (session && session.user.role !== "SUPER_ADMIN" && order.branchId !== session.user.branchId) {
+        return <div>Access Denied</div>
+    }
+
+    if (!session) {
+        if (!tokenPayload || tokenPayload.orderId !== order.id) {
+            return <div>Access Denied</div>
+        }
+
+        if (tokenPayload.role !== Role.SUPER_ADMIN && order.branchId !== tokenPayload.branchId) {
+            return <div>Access Denied</div>
+        }
+    }
+
+    if (session && tokenPayload && tokenPayload.orderId !== order.id) {
         return <div>Access Denied</div>
     }
 
@@ -191,6 +212,13 @@ export default async function InvoicePage(props: {
             </div>
 
             <PrintButton />
+            {autoDownload ? (
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: "window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 250); });",
+                    }}
+                />
+            ) : null}
         </div>
     )
 }

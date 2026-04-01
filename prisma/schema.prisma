@@ -33,6 +33,14 @@ enum NotificationType {
   ALERT
 }
 
+enum EnquiryStatus {
+  NEW
+  QUOTED
+  APPROVED
+  DECLINED
+  CONVERTED
+}
+
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
@@ -43,23 +51,25 @@ model User {
   branch    Branch?  @relation(fields: [branchId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  notifications Notification[]
-  orders        Order[]
+
+  notifications    Notification[]
+  orders           Order[]
+  handledEnquiries CustomerEnquiry[] @relation("EnquiryHandledBy")
 }
 
 model Branch {
-  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
   address   String
   phone     String
   logo      String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   users     User[]
   inventory Inventory[]
   orders    Order[]
+  enquiries CustomerEnquiry[]
 }
 
 model Customer {
@@ -71,22 +81,59 @@ model Customer {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   orders    Order[]
+  enquiries CustomerEnquiry[]
 }
 
 model Product {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  category    String
-  basePrice   Float
-  totalStock  Int
-  image       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  inventory   Inventory[]
-  orderItems  OrderItem[]
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  category   String
+  basePrice  Float
+  totalStock Int
+  image      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  inventory    Inventory[]
+  orderItems   OrderItem[]
+  enquiryItems CustomerEnquiryItem[]
+}
+
+model CustomerEnquiry {
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  customerId       String?       @db.ObjectId
+  customer         Customer?     @relation(fields: [customerId], references: [id])
+  customerName     String
+  customerPhone    String
+  customerEmail    String?
+  customerAddress  String?
+  requirements     String?
+  branchId         String        @db.ObjectId
+  branch           Branch        @relation(fields: [branchId], references: [id])
+  startDate        DateTime
+  endDate          DateTime
+  status           EnquiryStatus @default(NEW)
+  quoteAmount      Float?
+  adminNotes       String?
+  handledById      String?       @db.ObjectId
+  handledBy        User?         @relation("EnquiryHandledBy", fields: [handledById], references: [id])
+  convertedOrderId String?       @db.ObjectId
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  items CustomerEnquiryItem[]
+}
+
+model CustomerEnquiryItem {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  enquiryId       String          @db.ObjectId
+  enquiry         CustomerEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  productId       String          @db.ObjectId
+  product         Product         @relation(fields: [productId], references: [id])
+  quantity        Int
+  quotedUnitPrice Float?
 }
 
 model Inventory {
@@ -119,9 +166,9 @@ model Order {
   balance     Float
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  
-  items       OrderItem[]
-  payments    Payment[]
+
+  items    OrderItem[]
+  payments Payment[]
 }
 
 model OrderItem {
@@ -146,6 +193,22 @@ model Payment {
   updatedAt DateTime      @updatedAt
 }
 
+model PaymentIdempotency {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  scope          String
+  key            String
+  orderId        String        @db.ObjectId
+  amount         Float
+  method         PaymentMethod
+  paymentId      String?       @db.ObjectId
+  responseStatus Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([scope, key])
+  @@index([paymentId])
+}
+
 model Notification {
   id        String           @id @default(auto()) @map("_id") @db.ObjectId
   userId    String           @db.ObjectId
@@ -154,4 +217,10 @@ model Notification {
   read      Boolean          @default(false)
   type      NotificationType
   createdAt DateTime         @default(now())
+}
+
+model OrderSequence {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  year  Int    @unique
+  value Int
 }

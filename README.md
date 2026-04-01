@@ -2,6 +2,11 @@
 
 A comprehensive rental management system built with Next.js 14, MongoDB, Prisma, and NextAuth.js.
 
+## Project Context
+
+- Cross-app handoff and implementation history: `../PROJECT_HANDOFF_CONTEXT.md`
+- API request/response mapping: `API_CONTRACT_MATRIX.md`
+
 ## Prerequisites
 
 -   **Node.js**: Version 18+ (Recommended: 20 LTS)
@@ -30,9 +35,16 @@ DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/rental-system?
 # NextAuth Configuration
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="vSMo9XLh4OD3WiSIJBX2daAX3gK8dCRaGwDiAfYGHho="
+MOBILE_ACCESS_TOKEN_SECRET="replace_with_unique_secret"
+MOBILE_REFRESH_TOKEN_SECRET="replace_with_unique_secret"
+MOBILE_INVOICE_TOKEN_SECRET="replace_with_unique_secret"
+UPSTASH_REDIS_REST_URL="https://your-redis.upstash.io"
+UPSTASH_REDIS_REST_TOKEN="your_upstash_rest_token"
 ```
 
 *Note: The `NEXTAUTH_SECRET` has been auto-generated for you. If you deploy to production, generate a new one using `openssl rand -base64 32`.*
+Use dedicated mobile token secrets in production; `NEXTAUTH_SECRET` is only used as a fallback.
+Rate limiting automatically uses Upstash Redis when configured, and falls back to in-memory when not configured.
 
 ### 3. Database Setup
 
@@ -87,3 +99,7 @@ If you have run the seeding script, you can use these credentials to log in:
 -   **Financials**: Invoice generation and payment tracking.
 -   **Dashboard**: Analytics and reporting.
 -   **PWA**: Installable on mobile devices.
+
+## API Contracts
+
+- See `API_CONTRACT_MATRIX.md` for route-by-route request/response contract mapping between web/mobile clients and APIs.

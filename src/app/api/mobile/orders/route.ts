@@ -3,6 +3,14 @@ import { OrderStatus, Role } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { orderSchema } from "@/lib/schemas"
 import { verifyMobileRequest } from "@/lib/mobile-auth"
+import {
+  computeOrderTotals,
+  getDurationDays,
+  getNextOrderNumberAtomic,
+  lockInventoryForBooking,
+  runWithTransactionRetry,
+  validateAvailabilityOrThrow,
+} from "@/lib/order-processing"
 
 export async function GET(req: Request) {
   try {
@@ -13,6 +21,12 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status") as OrderStatus | null
+    const cursor = searchParams.get("cursor")?.trim() || undefined
+    const rawLimit = Number(searchParams.get("limit") ?? 20)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 50) : 20
+    if (auth.user.role !== Role.SUPER_ADMIN && !auth.user.branchId) {
+      return NextResponse.json({ message: "User not assigned to a branch" }, { status: 403 })
+    }
     const branchId =
       auth.user.role === Role.SUPER_ADMIN ? searchParams.get("branchId") ?? undefined : auth.user.branchId
 
@@ -23,8 +37,14 @@ export async function GET(req: Request) {
 
     const orders = await prisma.order.findMany({
       where,
-      orderBy: { createdAt: "desc" },
-      take: 50,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
       include: {
         customer: { select: { id: true, name: true, phone: true } },
         branch: { select: { id: true, name: true } },
@@ -32,7 +52,15 @@ export async function GET(req: Request) {
       },
     })
 
-    return NextResponse.json(orders)
+    const hasMore = orders.length > limit
+    const items = hasMore ? orders.slice(0, limit) : orders
+    const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null
+
+    return NextResponse.json({
+      items,
+      nextCursor,
+      hasMore,
+    })
   } catch (error) {
     console.error("[MOBILE_ORDERS_GET]", error)
     return new NextResponse("Internal Error", { status: 500 })
@@ -56,100 +84,80 @@ export async function POST(req: Request) {
       return new NextResponse("Forbidden for this branch", { status: 403 })
     }
 
-    const { customerId, branchId, startDate, endDate, items, totalAmount } = result.data
-    const productIds = items.map((i) => i.productId)
+    const { customerId, branchId, startDate, endDate, items } = result.data
 
-    const branchInventory = await prisma.inventory.findMany({
-      where: {
-        branchId,
-        productId: { in: productIds },
-      },
-    })
-
-    const inventoryMap = new Map(branchInventory.map((i) => [i.productId, i.quantity]))
-
-    const overlappingOrders = await prisma.order.findMany({
-      where: {
-        branchId,
-        status: { in: [OrderStatus.PENDING_APPROVAL, OrderStatus.CONFIRMED] },
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
-      },
-      include: { items: true },
-    })
-
-    const reservedMap = new Map<string, number>()
-    overlappingOrders.forEach((order) => {
-      order.items.forEach((item) => {
-        if (productIds.includes(item.productId)) {
-          reservedMap.set(item.productId, (reservedMap.get(item.productId) || 0) + item.quantity)
-        }
-      })
-    })
-
-    for (const item of items) {
-      const total = inventoryMap.get(item.productId) || 0
-      const reserved = reservedMap.get(item.productId) || 0
-      const available = total - reserved
-      if (item.quantity > available) {
-        return new NextResponse(`Insufficient stock for product ${item.productId}`, { status: 400 })
-      }
+    const durationDays = getDurationDays(startDate, endDate)
+    const totals = computeOrderTotals(items, durationDays)
+    const providedTotal = result.data.totalAmount
+    if (Math.abs(providedTotal - totals.totalAmount) > 0.01) {
+      return NextResponse.json(
+        { message: "Total amount mismatch. Please refresh pricing and try again." },
+        { status: 400 },
+      )
     }
+    const totalAmount = totals.totalAmount
+    const paidAmount = result.data.paidAmount || 0
 
-    const currentYear = new Date().getFullYear()
-    const lastOrder = await prisma.order.findFirst({
-      where: {
-        orderNumber: {
-          startsWith: `ORD-${currentYear}-`,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    })
-
-    const orderNumber =
-      lastOrder && lastOrder.orderNumber
-        ? `ORD-${currentYear}-${String(parseInt(lastOrder.orderNumber.split("-")[2]) + 1).padStart(4, "0")}`
-        : `ORD-${currentYear}-0001`
-
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
-        data: {
-          orderNumber,
-          customerId,
+    const order = await runWithTransactionRetry(() =>
+      prisma.$transaction(async (tx) => {
+        await lockInventoryForBooking(tx, {
           branchId,
-          userId: auth.user.userId,
+          productIds: items.map((item) => item.productId),
+        })
+        const availability = await validateAvailabilityOrThrow({
+          db: tx,
+          branchId,
           startDate,
           endDate,
-          totalAmount,
-          paidAmount: result.data.paidAmount || 0,
-          balance: totalAmount - (result.data.paidAmount || 0),
-          status: OrderStatus.CONFIRMED,
-          items: {
-            create: items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              subtotal: item.quantity * item.unitPrice,
-            })),
-          },
-        },
-      })
+          items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+        })
+        if (!availability.ok) {
+          throw new Error(availability.message)
+        }
 
-      if (result.data.paidAmount && result.data.paidAmount > 0 && result.data.paymentMethod) {
-        await tx.payment.create({
+        const orderNumber = await getNextOrderNumberAtomic(tx)
+        const newOrder = await tx.order.create({
           data: {
-            orderId: newOrder.id,
-            amount: result.data.paidAmount,
-            method: result.data.paymentMethod,
+            orderNumber,
+            customerId,
+            branchId,
+            userId: auth.user.userId,
+            startDate,
+            endDate,
+            totalAmount,
+            paidAmount,
+            balance: totalAmount - paidAmount,
+            status: OrderStatus.CONFIRMED,
+            items: {
+              create: totals.normalizedItems.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                subtotal: item.subtotal,
+              })),
+            },
           },
         })
-      }
 
-      return newOrder
-    })
+        if (paidAmount > 0 && result.data.paymentMethod) {
+          await tx.payment.create({
+            data: {
+              orderId: newOrder.id,
+              amount: paidAmount,
+              method: result.data.paymentMethod,
+            },
+          })
+        }
+
+        return newOrder
+      })
+    )
 
     return NextResponse.json(order)
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Cannot fulfill "')) {
+      return NextResponse.json({ message: error.message }, { status: 400 })
+    }
     console.error("[MOBILE_ORDERS_POST]", error)
     return new NextResponse("Internal Error", { status: 500 })
   }

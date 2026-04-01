@@ -19,6 +19,14 @@ export const userSchema = z.object({
 
 export type UserFormValues = z.infer<typeof userSchema>
 
+export const createUserSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    role: z.enum(["SUPER_ADMIN", "BRANCH_MANAGER", "STAFF", "THIRD_PARTY"]),
+    branchId: z.string().optional(),
+})
+
 export const productSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     category: z.string().min(2, "Category is required"),
@@ -89,3 +97,49 @@ export const paymentSchema = z.object({
 })
 
 export type PaymentFormValues = z.infer<typeof paymentSchema>
+
+export const enquiryItemSchema = z.object({
+    productId: z.string().min(1, "Product is required"),
+    quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
+    quotedUnitPrice: z.coerce.number().min(0, "Quoted unit price cannot be negative").optional(),
+})
+
+export const publicEnquirySchema = z.object({
+    customerName: z.string().min(2, "Customer name is required"),
+    customerPhone: z.string()
+        .min(10, "Phone number must be at least 10 digits")
+        .regex(/^\d+$/, "Phone number must contain only digits"),
+    customerEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+    customerAddress: z.string().optional(),
+    requirements: z.string().optional(),
+    branchId: z.string().min(1, "Branch is required"),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    items: z.array(enquiryItemSchema.omit({ quotedUnitPrice: true })).min(1, "At least one product is required"),
+}).superRefine((data, ctx) => {
+    if (data.endDate < data.startDate) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "End date cannot be before start date",
+            path: ["endDate"],
+        })
+    }
+})
+
+export const enquiryAdminUpdateSchema = z.object({
+    status: z.enum(["NEW", "QUOTED", "APPROVED", "DECLINED", "CONVERTED"]).optional(),
+    quoteAmount: z.coerce.number().min(0).optional(),
+    adminNotes: z.string().optional(),
+    requirements: z.string().optional(),
+    startDate: z.coerce.date().optional(),
+    endDate: z.coerce.date().optional(),
+    items: z.array(enquiryItemSchema).optional(),
+}).superRefine((data, ctx) => {
+    if (data.startDate && data.endDate && data.endDate < data.startDate) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "End date cannot be before start date",
+            path: ["endDate"],
+        })
+    }
+})

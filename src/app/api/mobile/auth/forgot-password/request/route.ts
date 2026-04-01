@@ -2,9 +2,21 @@ import { NextResponse } from "next/server"
 import crypto from "crypto"
 import { NotificationType, Role } from "@prisma/client"
 import prisma from "@/lib/prisma"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req)
+    const rl = await checkRateLimit({
+      key: `auth:forgot-request:${ip}`,
+      windowMs: 10 * 60 * 1000,
+      maxRequests: 10,
+      message: "Too many reset requests. Please try again later.",
+    })
+    if (!rl.ok) {
+      return rl.response
+    }
+
     const body = await req.json()
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : ""
 

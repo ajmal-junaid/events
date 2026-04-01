@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { userSchema } from "@/lib/schemas"
+import { createUserSchema } from "@/lib/schemas"
 import { Role } from "@prisma/client"
 import bcrypt from "bcrypt"
 
@@ -36,8 +36,9 @@ export async function GET() {
         })
 
         // Remove password from response
-        const sanitizedUsers = users.map(user => {
-            const { password, ...rest } = user
+        const sanitizedUsers = users.map((user) => {
+            const { password: __password, ...rest } = user
+            void __password
             return rest
         })
 
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const result = userSchema.safeParse(body)
+        const result = createUserSchema.safeParse(body)
 
         if (!result.success) {
             return new NextResponse("Invalid data", { status: 400 })
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
             return new NextResponse("Email already exists", { status: 400 })
         }
 
-        const hashedPassword = await bcrypt.hash(password || "123456", 10) // Default password if missing, though schema enforces it mostly
+        const hashedPassword = await bcrypt.hash(password, 10)
 
         const user = await prisma.user.create({
             data: {
@@ -85,7 +86,8 @@ export async function POST(req: Request) {
             }
         })
 
-        const { password: _, ...sanitizedUser } = user
+        const { password: __password, ...sanitizedUser } = user
+        void __password
 
         return NextResponse.json(sanitizedUser)
     } catch (error) {

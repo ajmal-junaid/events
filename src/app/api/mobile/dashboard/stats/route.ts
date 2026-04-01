@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     const branchId = auth.user.role === Role.SUPER_ADMIN ? undefined : auth.user.branchId
     const whereBranch = branchId ? { branchId } : {}
 
-    const [revenueAgg, activeOrdersCount, completedOrdersCount, stockCount] = await Promise.all([
+    const [revenueAgg, activeOrdersCount, completedOrdersCount, stockCount, recentOrders] = await Promise.all([
       prisma.order.aggregate({
         where: {
           ...whereBranch,
@@ -37,6 +37,19 @@ export async function GET(req: Request) {
         where: branchId ? { branchId } : {},
         _sum: { quantity: true },
       }),
+      prisma.order.findMany({
+        where: whereBranch,
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          customer: {
+            select: {
+              name: true,
+              phone: true,
+            },
+          },
+        },
+      }),
     ])
 
     return NextResponse.json({
@@ -44,6 +57,13 @@ export async function GET(req: Request) {
       activeOrdersCount,
       completedOrdersCount,
       totalStock: stockCount._sum.quantity ?? 0,
+      recentSales: recentOrders.map((order) => ({
+        id: order.id,
+        name: order.customer.name,
+        contact: order.customer.phone,
+        amount: order.totalAmount,
+        status: order.status,
+      })),
     })
   } catch (error) {
     console.error("[MOBILE_DASHBOARD_STATS_GET]", error)

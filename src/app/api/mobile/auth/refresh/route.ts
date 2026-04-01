@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { signMobileAccessToken, signMobileRefreshToken, verifyMobileRefreshToken } from "@/lib/mobile-auth"
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit"
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req)
+    const rl = await checkRateLimit({
+      key: `auth:refresh:${ip}`,
+      windowMs: 60 * 1000,
+      maxRequests: 60,
+      message: "Too many refresh requests. Please try again shortly.",
+    })
+    if (!rl.ok) {
+      return rl.response
+    }
+
     const body = await req.json()
     const refreshToken = typeof body?.refreshToken === "string" ? body.refreshToken : ""
 

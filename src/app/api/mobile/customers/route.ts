@@ -26,9 +26,33 @@ export async function GET(req: Request) {
       where,
       orderBy: { createdAt: "desc" },
       take: 100,
+      include: {
+        orders: {
+          select: {
+            id: true,
+            status: true,
+            balance: true,
+          },
+        },
+      },
     })
 
-    return NextResponse.json(customers)
+    const rows = customers.map((customer) => {
+      const activeOrders = customer.orders.filter((order) => order.status !== "CANCELLED")
+      return {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        address: customer.address,
+        notes: customer.notes,
+        createdAt: customer.createdAt,
+        updatedAt: customer.updatedAt,
+        pendingOrders: activeOrders.filter((order) => order.balance > 0).length,
+        totalPending: activeOrders.reduce((sum, order) => sum + order.balance, 0),
+      }
+    })
+
+    return NextResponse.json(rows)
   } catch (error) {
     console.error("[MOBILE_CUSTOMERS_GET]", error)
     return new NextResponse("Internal Error", { status: 500 })

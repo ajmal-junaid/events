@@ -4,8 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Settings, KeyRound } from "lucide-react"
+import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Settings, KeyRound, MessageSquareQuote } from "lucide-react"
 
 export function DashboardNav() {
     const pathname = usePathname()
@@ -61,6 +60,13 @@ export function DashboardNav() {
             icon: ShoppingCart,
             active: pathname === "/dashboard/orders",
             roles: ["SUPER_ADMIN", "BRANCH_MANAGER", "STAFF", "THIRD_PARTY"]
+        },
+        {
+            href: "/dashboard/enquiries",
+            label: "Enquiries",
+            icon: MessageSquareQuote,
+            active: pathname.startsWith("/dashboard/enquiries"),
+            roles: ["SUPER_ADMIN", "BRANCH_MANAGER"]
         },
         {
             href: "/dashboard/settings",

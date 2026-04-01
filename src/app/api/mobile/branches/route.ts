@@ -17,9 +17,31 @@ export async function GET(req: Request) {
     const branches = await prisma.branch.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      include: {
+        orders: {
+          select: {
+            id: true,
+            status: true,
+            balance: true,
+          },
+        },
+      },
     })
 
-    return NextResponse.json(branches)
+    const rows = branches.map((branch) => {
+      const activeOrders = branch.orders.filter((order) => order.status !== "CANCELLED")
+      return {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        phone: branch.phone,
+        logo: branch.logo,
+        receivableAmount: activeOrders.reduce((sum, order) => sum + order.balance, 0),
+        pendingOrders: activeOrders.filter((order) => order.balance > 0).length,
+      }
+    })
+
+    return NextResponse.json(rows)
   } catch (error) {
     console.error("[MOBILE_BRANCHES_GET]", error)
     return new NextResponse("Internal Error", { status: 500 })

@@ -47,6 +47,10 @@ export async function GET(
         ? customer.orders
         : customer.orders.filter((o) => o.branchId === auth.user.branchId)
 
+    if (auth.user.role !== Role.SUPER_ADMIN && orders.length === 0) {
+      return new NextResponse("Customer not found", { status: 404 })
+    }
+
     const activeOrders = orders.filter((o) => o.status !== "CANCELLED")
     const totalSpent = activeOrders.reduce((sum, o) => sum + o.totalAmount, 0)
     const totalPaid = activeOrders.reduce((sum, o) => sum + o.paidAmount, 0)

@@ -76,7 +76,6 @@ export function OrderCreateClient({
     const [loadingAvailability, setLoadingAvailability] = useState(false)
 
     const [cart, setCart] = useState<CartItem[]>([])
-    const [discount, setDiscount] = useState<number>(0)
     const [paidAmount, setPaidAmount] = useState<number>(0)
     const [paymentMethod, setPaymentMethod] = useState<string>("")
     const [submitting, setSubmitting] = useState(false)
@@ -159,7 +158,7 @@ export function OrderCreateClient({
     }
 
     const subtotal = cart.reduce((sum, item) => sum + (item.customPrice * item.quantity * days), 0)
-    const totalAmount = Math.max(0, subtotal - discount)
+    const totalAmount = subtotal
 
     const onSubmit = async () => {
         if (!selectedCustomer) {
@@ -215,8 +214,9 @@ export function OrderCreateClient({
             toast.success("Order created successfully")
             router.push(`/dashboard/orders/${createdOrder.id}`)
             router.refresh()
-        } catch (error: any) {
-            toast.error(error.message || "Failed to create order")
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to create order"
+            toast.error(message)
         } finally {
             setSubmitting(false)
         }
@@ -476,17 +476,6 @@ export function OrderCreateClient({
                                 <div className="flex justify-between text-base">
                                     <span>Subtotal</span>
                                     <span>₹{subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Label className="text-base font-medium">Discount</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        step={0.01}
-                                        className="h-10 w-28 text-base"
-                                        value={discount}
-                                        onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                                    />
                                 </div>
                                 <div className="flex justify-between font-bold text-xl">
                                     <span>Total</span>

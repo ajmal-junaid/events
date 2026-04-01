@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { OrderStatus } from "@prisma/client"
+import { OrderStatus, Role } from "@prisma/client"
 
 export async function PATCH(
     req: Request,
@@ -36,6 +36,10 @@ export async function PATCH(
 
         if (!currentOrder) {
             return new NextResponse("Order not found", { status: 404 })
+        }
+
+        if (session.user.role !== Role.SUPER_ADMIN && currentOrder.branchId !== session.user.branchId) {
+            return new NextResponse("Forbidden", { status: 403 })
         }
 
         // Prevent invalid status transitions

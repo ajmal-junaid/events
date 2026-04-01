@@ -38,11 +38,16 @@ export function PaymentForm({ orderId, balance, onSuccess }: PaymentFormProps) {
             }
 
             setLoading(true)
+            const idempotencyKey =
+                typeof crypto !== "undefined" && "randomUUID" in crypto
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
             const response = await fetch(`/api/payments`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Idempotency-Key": idempotencyKey,
                 },
                 body: JSON.stringify(data),
             })
@@ -55,8 +60,9 @@ export function PaymentForm({ orderId, balance, onSuccess }: PaymentFormProps) {
             toast.success("Payment recorded")
             router.refresh()
             onSuccess?.()
-        } catch (error: any) {
-            toast.error(error.message)
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Something went wrong"
+            toast.error(message)
         } finally {
             setLoading(false)
         }

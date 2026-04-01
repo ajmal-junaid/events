@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcrypt"
 import { Role } from "@prisma/client"
 import prisma from "@/lib/prisma"
-import { userSchema } from "@/lib/schemas"
+import { createUserSchema } from "@/lib/schemas"
 import { verifyMobileRequest } from "@/lib/mobile-auth"
 
 export async function GET(req: Request) {
@@ -16,8 +16,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 })
     }
 
-    const whereClause =
-      auth.user.role === Role.BRANCH_MANAGER ? { branchId: auth.user.branchId } : {}
+    const { searchParams } = new URL(req.url)
+    const rawLimit = Number(searchParams.get("limit") ?? 20)
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 50) : 20
+    const cursor = searchParams.get("cursor")?.trim()
+
+    const whereClause = auth.user.role === Role.BRANCH_MANAGER ? { branchId: auth.user.branchId } : {}
 
     const users = await prisma.user.findMany({
       where: whereClause,
@@ -27,14 +31,30 @@ export async function GET(req: Request) {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: limit + 1,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
     })
 
-    const sanitizedUsers = users.map((user) => {
-      const { password: _p, ...rest } = user
+    const hasMore = users.length > limit
+    const pageItems = hasMore ? users.slice(0, limit) : users
+    const sanitizedUsers = pageItems.map((user) => {
+      const { password: __password, ...rest } = user
+      void __password
       return rest
     })
 
-    return NextResponse.json(sanitizedUsers)
+    const nextCursor = hasMore ? pageItems[pageItems.length - 1]?.id : null
+
+    return NextResponse.json({
+      items: sanitizedUsers,
+      nextCursor,
+      hasMore,
+    })
   } catch (error) {
     console.error("[MOBILE_USERS_GET]", error)
     return new NextResponse("Internal Error", { status: 500 })
@@ -53,7 +73,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const result = userSchema.safeParse(body)
+    const result = createUserSchema.safeParse(body)
 
     if (!result.success) {
       return new NextResponse("Invalid data", { status: 400 })
@@ -69,7 +89,7 @@ export async function POST(req: Request) {
       return new NextResponse("Email already exists", { status: 400 })
     }
 
-    const hashedPassword = await bcrypt.hash(password || "123456", 10)
+    const hashedPassword = await bcrypt.hash(password, 10)
 
     const user = await prisma.user.create({
       data: {
@@ -81,7 +101,8 @@ export async function POST(req: Request) {
       },
     })
 
-    const { password: _p, ...sanitizedUser } = user
+    const { password: __password, ...sanitizedUser } = user
+    void __password
 
     return NextResponse.json(sanitizedUser)
   } catch (error) {

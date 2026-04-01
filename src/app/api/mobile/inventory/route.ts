@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { Role } from "@prisma/client"
+import { OrderStatus, Role } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import { inventorySchema } from "@/lib/schemas"
 import { verifyMobileRequest } from "@/lib/mobile-auth"
@@ -42,13 +42,38 @@ export async function GET(req: Request) {
       },
     })
 
+    const today = new Date()
+    const todayStart = new Date(today)
+    todayStart.setHours(0, 0, 0, 0)
+    const todayEnd = new Date(today)
+    todayEnd.setHours(23, 59, 59, 999)
+
+    const activeOrders = await prisma.order.findMany({
+      where: {
+        branchId: targetBranchId,
+        status: { in: [OrderStatus.PENDING_APPROVAL, OrderStatus.CONFIRMED] },
+        startDate: { lte: todayEnd },
+        endDate: { gte: todayStart },
+      },
+      include: { items: true },
+    })
+
+    const reservedNowMap = new Map<string, number>()
+    for (const order of activeOrders) {
+      for (const item of order.items) {
+        reservedNowMap.set(item.productId, (reservedNowMap.get(item.productId) || 0) + item.quantity)
+      }
+    }
+
     const inventoryData = products.map((product) => ({
+      currentStock: product.inventory[0]?.quantity ?? 0,
+      reservedNow: reservedNowMap.get(product.id) || 0,
+      availableNow: Math.max(0, (product.inventory[0]?.quantity ?? 0) - (reservedNowMap.get(product.id) || 0)),
       id: product.id,
       name: product.name,
       category: product.category,
       basePrice: product.basePrice,
       totalStock: product.totalStock,
-      currentStock: product.inventory[0]?.quantity ?? 0,
     }))
 
     return NextResponse.json(inventoryData)
