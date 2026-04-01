@@ -17,7 +17,12 @@ export async function GET() {
         // If super admin, fetch all. If branch manager, fetch only their branch users?
         // For now, let's keep it simple: Super Admin sees all. Branch Manager sees their branch users.
         const whereClause = session.user.role === Role.BRANCH_MANAGER
-            ? { branchId: session.user.branchId }
+            ? {
+                branchId: session.user.branchId,
+                role: {
+                    not: Role.SUPER_ADMIN
+                }
+            }
             : {}
 
         const users = await prisma.user.findMany({

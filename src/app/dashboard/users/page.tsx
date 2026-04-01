@@ -1,10 +1,33 @@
 import { format } from "date-fns"
+import { getServerSession } from "next-auth"
+import { redirect } from "next/navigation"
+import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
+import { Role } from "@prisma/client"
 import { UserClient } from "./client"
 import { UserColumn } from "./columns"
 
 export default async function UsersPage() {
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+        redirect("/login")
+    }
+
+    if (session.user.role !== Role.SUPER_ADMIN && session.user.role !== Role.BRANCH_MANAGER) {
+        redirect("/dashboard")
+    }
+
+    const whereClause =
+        session.user.role === Role.BRANCH_MANAGER
+            ? {
+                branchId: session.user.branchId,
+                role: { not: Role.SUPER_ADMIN }
+            }
+            : {}
+
     const users = await prisma.user.findMany({
+        where: whereClause,
         include: {
             branch: {
                 select: { name: true }

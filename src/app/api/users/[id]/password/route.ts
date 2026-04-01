@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcrypt"
+import { Role } from "@prisma/client"
 
 export async function PUT(
     req: Request,
@@ -35,6 +36,10 @@ export async function PUT(
 
         if (!user) {
             return new NextResponse("User not found", { status: 404 })
+        }
+
+        if (user.role === Role.BRANCH_MANAGER) {
+            return new NextResponse("Branch manager password cannot be changed directly", { status: 403 })
         }
 
         // Verify current password

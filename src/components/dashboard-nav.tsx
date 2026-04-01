@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Settings } from "lucide-react"
+import { LayoutDashboard, Store, Users, ShoppingCart, Package, Calendar, Settings, KeyRound } from "lucide-react"
 
 export function DashboardNav() {
     const pathname = usePathname()
@@ -68,6 +68,13 @@ export function DashboardNav() {
             icon: Settings,
             active: pathname.startsWith("/dashboard/settings"),
             roles: ["SUPER_ADMIN", "BRANCH_MANAGER", "STAFF", "THIRD_PARTY"]
+        },
+        {
+            href: "/dashboard/password-resets",
+            label: "Password Resets",
+            icon: KeyRound,
+            active: pathname.startsWith("/dashboard/password-resets"),
+            roles: ["SUPER_ADMIN"]
         },
     ]
 

@@ -13,7 +13,7 @@ export async function PUT(
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session || session.user.role !== Role.SUPER_ADMIN) {
+        if (!session || (session.user.role !== Role.SUPER_ADMIN && session.user.role !== Role.BRANCH_MANAGER)) {
             return new NextResponse("Unauthorized", { status: 403 })
         }
 
@@ -35,12 +35,29 @@ export async function PUT(
             return new NextResponse("User not found", { status: 404 })
         }
 
+        if (session.user.role === Role.BRANCH_MANAGER) {
+            if (existingUser.role === Role.SUPER_ADMIN) {
+                return new NextResponse("Forbidden: cannot modify super admin", { status: 403 })
+            }
+            if (!session.user.branchId || existingUser.branchId !== session.user.branchId) {
+                return new NextResponse("Forbidden", { status: 403 })
+            }
+            if (role !== existingUser.role || (branchId || null) !== (existingUser.branchId || null)) {
+                return new NextResponse("Forbidden: managers cannot change role or branch assignment", { status: 403 })
+            }
+        }
+
         // Prepare update data
         const updateData: any = {
             name,
             email,
             role,
             branchId: branchId || null
+        }
+
+        // Branch manager password updates are intentionally blocked.
+        if (existingUser.role === Role.BRANCH_MANAGER && password && password.length > 0) {
+            return new NextResponse("Branch manager password cannot be updated", { status: 403 })
         }
 
         // Only update password if provided and not empty
@@ -71,11 +88,29 @@ export async function DELETE(
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session || session.user.role !== Role.SUPER_ADMIN) {
+        if (!session || (session.user.role !== Role.SUPER_ADMIN && session.user.role !== Role.BRANCH_MANAGER)) {
             return new NextResponse("Unauthorized", { status: 403 })
         }
 
         const params = await context.params
+        const existingUser = await prisma.user.findUnique({
+            where: { id: params.id },
+            select: { role: true, branchId: true }
+        })
+
+        if (!existingUser) {
+            return new NextResponse("User not found", { status: 404 })
+        }
+
+        if (session.user.role === Role.BRANCH_MANAGER) {
+            if (existingUser.role === Role.SUPER_ADMIN) {
+                return new NextResponse("Forbidden: cannot delete super admin", { status: 403 })
+            }
+            if (!session.user.branchId || existingUser.branchId !== session.user.branchId) {
+                return new NextResponse("Forbidden", { status: 403 })
+            }
+        }
+
         const user = await prisma.user.delete({
             where: {
                 id: params.id

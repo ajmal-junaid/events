@@ -63,6 +63,21 @@ export const orderSchema = z.object({
     totalAmount: z.number().min(0),
     paidAmount: z.number().min(0).optional(),
     paymentMethod: z.enum(["CASH", "UPI", "TRANSFER"]).optional(),
+}).superRefine((data, ctx) => {
+    if (data.endDate < data.startDate) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "End date cannot be before start date",
+            path: ["endDate"],
+        })
+    }
+    if (typeof data.paidAmount === "number" && data.paidAmount > data.totalAmount) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Paid amount cannot exceed total amount",
+            path: ["paidAmount"],
+        })
+    }
 })
 
 export type OrderFormValues = z.infer<typeof orderSchema>

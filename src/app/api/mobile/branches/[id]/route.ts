@@ -4,6 +4,69 @@ import prisma from "@/lib/prisma"
 import { branchSchema } from "@/lib/schemas"
 import { verifyMobileRequest } from "@/lib/mobile-auth"
 
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = verifyMobileRequest(req)
+    if (!auth.ok) {
+      return auth.response
+    }
+
+    if (
+      auth.user.role !== Role.SUPER_ADMIN &&
+      auth.user.role !== Role.BRANCH_MANAGER &&
+      auth.user.role !== Role.STAFF
+    ) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+    }
+
+    const { id } = await context.params
+    if (auth.user.role !== Role.SUPER_ADMIN && auth.user.branchId !== id) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 })
+    }
+
+    const branch = await prisma.branch.findUnique({
+      where: { id },
+      include: {
+        orders: {
+          include: {
+            customer: { select: { id: true, name: true, phone: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    })
+
+    if (!branch) {
+      return new NextResponse("Branch not found", { status: 404 })
+    }
+
+    const activeOrders = branch.orders.filter((o) => o.status !== "CANCELLED")
+    const totalRevenue = activeOrders.reduce((sum, o) => sum + o.totalAmount, 0)
+    const totalReceived = activeOrders.reduce((sum, o) => sum + o.paidAmount, 0)
+    const totalReceivable = activeOrders.reduce((sum, o) => sum + o.balance, 0)
+
+    return NextResponse.json({
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      phone: branch.phone,
+      summary: {
+        totalRevenue,
+        totalReceived,
+        totalReceivable,
+        ordersCount: branch.orders.length,
+      },
+      orders: branch.orders,
+    })
+  } catch (error) {
+    console.error("[MOBILE_BRANCH_GET]", error)
+    return new NextResponse("Internal Error", { status: 500 })
+  }
+}
+
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> }
