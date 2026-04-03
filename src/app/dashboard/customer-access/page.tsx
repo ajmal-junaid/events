@@ -38,10 +38,20 @@ export default async function CustomerAccessPage() {
     orderBy: { createdAt: "desc" },
   })
 
+  const customers = await prisma.customer.findMany({
+    select: { id: true, name: true, phone: true },
+    orderBy: { name: "asc" },
+  })
+
   return (
     <div className="flex-col">
       <div className="flex-1 space-y-4 p-4 pt-4 md:p-8 md:pt-6">
-        <CustomerAccessClient initialCodes={codes} branches={branches} role={session.user.role} />
+        <CustomerAccessClient
+          initialCodes={codes}
+          branches={branches}
+          customers={customers}
+          role={session.user.role}
+        />
       </div>
     </div>
   )

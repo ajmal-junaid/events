@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 type BranchLite = { id: string; name: string }
+type CustomerLite = { id: string; name: string; phone: string }
 type CodeItem = {
   id: string
   label: string | null
@@ -27,21 +28,28 @@ type CodeItem = {
 export function CustomerAccessClient({
   initialCodes,
   branches,
+  customers,
   role,
 }: {
   initialCodes: CodeItem[]
   branches: BranchLite[]
+  customers: CustomerLite[]
   role: Role
 }) {
   const [codes, setCodes] = useState(initialCodes)
   const [label, setLabel] = useState("")
   const [scope, setScope] = useState<CustomerAccessScope>(CustomerAccessScope.SINGLE_BRANCH)
   const [branchId, setBranchId] = useState(branches[0]?.id ?? "")
-  const [customerPhone, setCustomerPhone] = useState("")
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "")
   const [creating, setCreating] = useState(false)
   const [latestCode, setLatestCode] = useState<string | null>(null)
 
   const disableBranchSelect = role === Role.BRANCH_MANAGER || scope === CustomerAccessScope.ALL_BRANCHES
+  const requiresBranch = role === Role.BRANCH_MANAGER || scope === CustomerAccessScope.SINGLE_BRANCH
+  const canCreate =
+    !creating &&
+    (!requiresBranch || Boolean(branchId)) &&
+    (customers.length === 0 || Boolean(customerId))
 
   const sortedCodes = useMemo(
     () =>
@@ -50,6 +58,32 @@ export function CustomerAccessClient({
       ),
     [codes]
   )
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === customerId) ?? null,
+    [customerId, customers]
+  )
+
+  async function copyText(value: string) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+      return
+    }
+
+    if (typeof document !== "undefined") {
+      const textarea = document.createElement("textarea")
+      textarea.value = value
+      textarea.setAttribute("readonly", "")
+      textarea.style.position = "fixed"
+      textarea.style.opacity = "0"
+      document.body.appendChild(textarea)
+      textarea.select()
+      const copied = document.execCommand("copy")
+      document.body.removeChild(textarea)
+      if (copied) return
+    }
+
+    throw new Error("Clipboard is not available in this browser context")
+  }
 
   async function refreshCodes() {
     const res = await fetch("/api/customer-access-codes")
@@ -64,10 +98,17 @@ export function CustomerAccessClient({
     try {
       const payload =
         role === Role.BRANCH_MANAGER
-          ? { label, customerPhone: customerPhone.trim() || undefined, scope: CustomerAccessScope.SINGLE_BRANCH, branchId }
+          ? {
+              label,
+              customerId: customerId || undefined,
+              customerPhone: selectedCustomer?.phone,
+              scope: CustomerAccessScope.SINGLE_BRANCH,
+              branchId,
+            }
           : {
               label,
-              customerPhone: customerPhone.trim() || undefined,
+              customerId: customerId || undefined,
+              customerPhone: selectedCustomer?.phone,
               scope,
               branchId: scope === CustomerAccessScope.SINGLE_BRANCH ? branchId : undefined,
             }
@@ -82,7 +123,7 @@ export function CustomerAccessClient({
 
       setLatestCode(body.accessCode)
       setLabel("")
-      setCustomerPhone("")
+      setCustomerId(customers[0]?.id ?? "")
       await refreshCodes()
       toast.success("Customer access code created")
     } catch (e) {
@@ -126,12 +167,22 @@ export function CustomerAccessClient({
           </div>
 
           <div className="grid gap-2">
-            <Label>Customer phone (optional, for My Orders view)</Label>
-            <Input
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="e.g. +91XXXXXXXXXX"
-            />
+            <Label>Customer (optional, for My Orders view)</Label>
+            <Select value={customerId} onValueChange={setCustomerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name} ({c.phone})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCustomer ? (
+              <p className="text-xs text-muted-foreground">Linked phone: {selectedCustomer.phone}</p>
+            ) : null}
           </div>
 
           {role === Role.SUPER_ADMIN ? (
@@ -163,9 +214,12 @@ export function CustomerAccessClient({
                 ))}
               </SelectContent>
             </Select>
+            {branches.length === 0 ? (
+              <p className="text-xs text-destructive">No branches available for your account.</p>
+            ) : null}
           </div>
 
-          <Button onClick={() => void createCode()} disabled={creating}>
+          <Button onClick={() => void createCode()} disabled={!canCreate}>
             {creating ? "Creating..." : "Create Customer Access Code"}
           </Button>
 
@@ -177,8 +231,12 @@ export function CustomerAccessClient({
                 <Button
                   variant="secondary"
                   onClick={async () => {
-                    await navigator.clipboard.writeText(latestCode)
-                    toast.success("Code copied")
+                    try {
+                      await copyText(latestCode)
+                      toast.success("Code copied")
+                    } catch {
+                      toast.error("Could not copy automatically. Please copy manually.")
+                    }
                   }}
                 >
                   Copy
