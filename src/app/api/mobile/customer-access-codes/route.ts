@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma"
 
 const createSchema = z.object({
   label: z.string().trim().max(60).optional(),
+  customerId: z.string().optional(),
   customerPhone: z.string().trim().min(10).max(20).optional(),
   scope: z.enum(["ALL_BRANCHES", "SINGLE_BRANCH"]),
   branchId: z.string().optional(),
@@ -94,10 +95,23 @@ export async function POST(req: Request) {
     const codeHash = hashCustomerAccessCode(rawCode)
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
+    let resolvedCustomerPhone = parsed.data.customerPhone?.trim() || undefined
+
+    if (parsed.data.customerId) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: parsed.data.customerId },
+        select: { id: true, phone: true },
+      })
+      if (!customer) {
+        return NextResponse.json({ message: "Customer not found" }, { status: 404 })
+      }
+      resolvedCustomerPhone = customer.phone
+    }
+
     const created = await prisma.customerAccessCode.create({
       data: {
         label: parsed.data.label?.trim() || undefined,
-        customerPhone: parsed.data.customerPhone?.trim() || undefined,
+        customerPhone: resolvedCustomerPhone,
         codeHash,
         scope:
           scope === "ALL_BRANCHES"

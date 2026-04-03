@@ -43,6 +43,7 @@ export function CustomerAccessClient({
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? "")
   const [creating, setCreating] = useState(false)
   const [latestCode, setLatestCode] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const disableBranchSelect = role === Role.BRANCH_MANAGER || scope === CustomerAccessScope.ALL_BRANCHES
   const requiresBranch = role === Role.BRANCH_MANAGER || scope === CustomerAccessScope.SINGLE_BRANCH
@@ -134,6 +135,8 @@ export function CustomerAccessClient({
   }
 
   async function deleteCode(id: string) {
+    if (deletingId) return
+    setDeletingId(id)
     try {
       const res = await fetch(`/api/customer-access-codes/${id}`, { method: "DELETE" })
       if (!res.ok) {
@@ -144,6 +147,8 @@ export function CustomerAccessClient({
       toast.success("Access code deleted")
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to delete code")
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -261,8 +266,13 @@ export function CustomerAccessClient({
                   <div className="font-medium">{item.label || "Untitled code"}</div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{item.scope === CustomerAccessScope.ALL_BRANCHES ? "All branches" : "Single branch"}</Badge>
-                    <Button variant="destructive" size="sm" onClick={() => void deleteCode(item.id)}>
-                      Delete
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={Boolean(deletingId)}
+                      onClick={() => void deleteCode(item.id)}
+                    >
+                      {deletingId === item.id ? "Deleting..." : "Delete"}
                     </Button>
                   </div>
                 </div>
