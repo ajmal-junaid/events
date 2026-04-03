@@ -41,6 +41,11 @@ enum EnquiryStatus {
   CONVERTED
 }
 
+enum CustomerAccessScope {
+  ALL_BRANCHES
+  SINGLE_BRANCH
+}
+
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
@@ -55,6 +60,7 @@ model User {
   notifications    Notification[]
   orders           Order[]
   handledEnquiries CustomerEnquiry[] @relation("EnquiryHandledBy")
+  customerAccessCodesCreated CustomerAccessCode[] @relation("CustomerAccessCodeCreatedBy")
 }
 
 model Branch {
@@ -70,6 +76,7 @@ model Branch {
   inventory Inventory[]
   orders    Order[]
   enquiries CustomerEnquiry[]
+  customerAccessCodes CustomerAccessCode[]
 }
 
 model Customer {
@@ -223,4 +230,23 @@ model OrderSequence {
   id    String @id @default(auto()) @map("_id") @db.ObjectId
   year  Int    @unique
   value Int
+}
+
+model CustomerAccessCode {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  label       String?
+  customerPhone String?
+  codeHash    String              @unique
+  scope       CustomerAccessScope
+  branchId    String?             @db.ObjectId
+  branch      Branch?             @relation(fields: [branchId], references: [id])
+  createdById String              @db.ObjectId
+  createdBy   User                @relation("CustomerAccessCodeCreatedBy", fields: [createdById], references: [id])
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([branchId])
+  @@index([expiresAt])
 }
